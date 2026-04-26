@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Movify — Cinematic recommendations</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,700;0,900;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="nav">
+      <div class="nav__left">
+        <div class="logo">
+          <div class="logo__mark">M</div>
+          <div class="logo__text">Movify</div>
+        </div>
+        <nav class="nav__links">
+          <a href="#home">Home</a>
+          <a href="#recommend">Recommendations</a>
+          <a href="#compare">Comparison</a>
+          <a href="#about">How it works</a>
+        </nav>
+      </div>
+      <div class="nav__right">
+        <div class="status pill" id="statusPill">
+          <span id="statusDot" class="dot"></span>
+          <span id="statusText">Booting…</span>
+        </div>
+      </div>
+    </header>
+
+    <main id="home">
+      <!-- Hero -->
+      <section class="hero">
+        <div class="hero__bg" id="heroBg"></div>
+        <div class="hero__scrim"></div>
+        <div class="hero__noise"></div>
+        <div class="hero__content">
+          <div class="hero__kicker">
+            <span class="dot dot--red"></span>
+            IMDB Top 250 · Explainable Recommender
+          </div>
+          <h1 class="hero__title" id="heroTitle">Movify</h1>
+          <div class="hero__meta" id="heroMeta"></div>
+          <p class="hero__tagline" id="heroTagline">
+            Pick a movie you love and we'll tell you what to watch next — and exactly why.
+          </p>
+
+          <div class="hero__actions">
+            <div class="search">
+              <svg class="search__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input id="searchInput" placeholder="Search by title — e.g., Inception, The Godfather…" autocomplete="off" />
+              <button class="btn btn--primary" id="searchBtn">Search</button>
+            </div>
+            <div class="toggle" role="tablist" aria-label="Recommendation method">
+              <span class="toggle__label">Method</span>
+              <button class="chip chip--on" id="methodContent" data-method="content" role="tab">
+                <span class="chip__dot"></span> Content‑based
+              </button>
+              <button class="chip" id="methodCollab" data-method="collaborative" role="tab">
+                <span class="chip__dot"></span> Collaborative
+              </button>
+            </div>
+          </div>
+
+          <div class="coldstart card-glass" id="coldStartBox">
+            <div class="coldstart__hd">
+              <div>
+                <strong>New here?</strong>
+                <span class="muted"> · pick a few genres so we can warm up.</span>
+              </div>
+              <span class="muted small">No account needed.</span>
+            </div>
+            <div class="genreChips" id="genreChips"></div>
+            <div class="coldstart__actions">
+              <button class="btn btn--primary" id="coldStartBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                Recommend from my genres
+              </button>
+              <button class="btn btn--ghost" id="clearGenresBtn">Clear</button>
+            </div>
+            <div class="err" id="coldErr"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Rows -->
+      <section class="rows">
+        <div class="row">
+          <div class="row__hd">
+            <h2>Top Rated <span class="row__count" id="topCount"></span></h2>
+            <span class="muted">IMDB Top 250 · click any card to seed</span>
+          </div>
+          <div class="rail-wrap">
+            <button class="rail-btn rail-btn--left" data-target="railTop" aria-label="Scroll left">‹</button>
+            <div class="rail" id="railTop"></div>
+            <button class="rail-btn rail-btn--right" data-target="railTop" aria-label="Scroll right">›</button>
+          </div>
+        </div>
+
+        <div class="row" id="recommend">
+          <div class="row__hd">
+            <h2>Recommended for you</h2>
+            <span class="muted" id="primaryLabel">Explainable results</span>
+          </div>
+
+          <div class="panel card-glass">
+            <div class="panel__left">
+              <div class="seed">
+                <div class="seed__poster" id="seedPoster"></div>
+                <div class="seed__meta">
+                  <div class="muted small">Seed movie</div>
+                  <div class="seed__title" id="seedTitle">Choose a movie above</div>
+                  <div class="seed__sub muted" id="seedSub">Click any card to set it as the seed, then we'll find you something to watch next.</div>
+                </div>
+              </div>
+            </div>
+            <div class="panel__right">
+              <button class="btn btn--primary btn--lg" id="recommendBtn" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 14.39 8.26 21 9.27l-5 4.87L17.18 21 12 17.77 6.82 21 8 14.14l-5-4.87 6.61-1.01L12 2Z"/></svg>
+                Get Recommendations
+              </button>
+              <div class="err" id="recErr"></div>
+            </div>
+          </div>
+
+          <div class="rail-wrap">
+            <button class="rail-btn rail-btn--left" data-target="railPrimary" aria-label="Scroll left">‹</button>
+            <div class="rail rail--empty" id="railPrimary" data-empty="Recommendations will appear here.">
+              <div class="empty">Recommendations will appear here.</div>
+            </div>
+            <button class="rail-btn rail-btn--right" data-target="railPrimary" aria-label="Scroll right">›</button>
+          </div>
+        </div>
+
+        <div class="row" id="compare">
+          <div class="row__hd">
+            <h2>Comparison</h2>
+            <span class="muted" id="compareLabel">How the other method would have ranked these picks.</span>
+          </div>
+          <div class="rail-wrap">
+            <button class="rail-btn rail-btn--left" data-target="railComparison" aria-label="Scroll left">‹</button>
+            <div class="rail rail--empty" id="railComparison">
+              <div class="empty">Comparison will appear here.</div>
+            </div>
+            <button class="rail-btn rail-btn--right" data-target="railComparison" aria-label="Scroll right">›</button>
+          </div>
+        </div>
+
+        <div class="row" id="about">
+          <div class="row__hd">
+            <h2>How it works</h2>
+            <span class="muted">Two recommenders, side by side.</span>
+          </div>
+          <div class="how">
+            <div class="how__card card-glass">
+              <div class="how__icon">CB</div>
+              <h3>Content‑Based</h3>
+              <p class="muted">Compares movies by their genres, cast, directors, writers, and tagline using TF‑IDF similarity. We surface the overlapping terms so you see exactly why a recommendation matches.</p>
+            </div>
+            <div class="how__card card-glass">
+              <div class="how__icon">CF</div>
+              <h3>Collaborative</h3>
+              <p class="muted">Builds an item‑item similarity matrix from a simulated audience of taste profiles. Picks for you are titles that "co‑rate" similarly to the seed.</p>
+            </div>
+            <div class="how__card card-glass">
+              <div class="how__icon">XAI</div>
+              <h3>Explainable</h3>
+              <p class="muted">Every card answers the question "why this one?" — shared terms for content, ratings affinity for collaborative. No black boxes.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="foot">
+        <span>Movify · IMDB Top 250</span>
+        <span class="muted">Built with explainable content‑based and collaborative filtering.</span>
+      </footer>
+    </main>
+
+    <!-- Movie details modal -->
+    <div class="modal" id="modal" hidden>
+      <div class="modal__scrim" data-close="1"></div>
+      <div class="modal__sheet" role="dialog" aria-modal="true">
+        <button class="modal__close" data-close="1" aria-label="Close">×</button>
+        <div class="modal__poster" id="modalPoster"></div>
+        <div class="modal__body">
+          <div class="muted small" id="modalKicker">Movie</div>
+          <h2 id="modalTitle">—</h2>
+          <div class="modal__meta" id="modalMeta"></div>
+          <p class="modal__tagline" id="modalTagline"></p>
+          <div class="modal__grid" id="modalGrid"></div>
+          <div class="modal__actions">
+            <button class="btn btn--primary" id="modalSeedBtn">Use as seed →</button>
+            <button class="btn btn--ghost" data-close="1">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

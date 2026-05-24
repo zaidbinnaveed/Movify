@@ -175,7 +175,35 @@ function posterDataUri(movie){
   </text>
 </svg>`.trim();
 
-  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  // Base64 data URI is more robust across browsers/CSS parsers than
+  // percent-encoded SVG (especially with special Unicode glyphs).
+  const utf8 = unescape(encodeURIComponent(svg));
+  const b64 = btoa(utf8);
+  return `data:image/svg+xml;base64,${b64}`;
+}
+
+function posterUrl(movie){
+  const title = encodeURIComponent(String(movie?.title || "").trim());
+  const year = encodeURIComponent(String(movie?.year || "").trim());
+  return `/api/poster-image?title=${title}&year=${year}`;
+}
+
+function setBgWithFallback(el, movie){
+  if(!el) return;
+  const url = posterUrl(movie);
+  const fallback = posterDataUri(movie);
+  const probe = new Image();
+  probe.onload = () => {
+    el.style.backgroundImage = `url('${url}')`;
+    el.style.backgroundSize = "cover";
+    el.style.backgroundPosition = "center";
+  };
+  probe.onerror = () => {
+    el.style.backgroundImage = `url('${fallback}')`;
+    el.style.backgroundSize = "cover";
+    el.style.backgroundPosition = "center";
+  };
+  probe.src = url;
 }
 
 /* ─────────────── Card ─────────────── */
@@ -198,11 +226,13 @@ function buildWhy(expl){
   return `<b>Why:</b> ${escapeHtml(expl.why || "Explainable recommendation.")}`;
 }
 function renderCard(movie){
-  const title  = escapeHtml(movie.title);
+  const titleRaw = String(movie.title || "");
+  const title  = escapeHtml(titleRaw);
   const yr     = movie.year ?? "—";
   const rating = (typeof movie.rating === "number") ? movie.rating.toFixed(1) : (movie.rating ?? "N/A");
   const genres = (movie.genres || []).slice(0,2).join(" · ");
-  const bg     = posterDataUri(movie);
+  const imgUrl = posterUrl(movie);
+  const fallback = posterDataUri(movie);
   const rank   = rankFor(movie);
   const why    = movie.explanation ? buildWhy(movie.explanation) : "";
   const whyHtml = why ? `<div class="whyBox">${why}</div>` : "";
@@ -211,7 +241,15 @@ function renderCard(movie){
 
   return `
     <article class="cardMovie" data-id="${movie.movieId}">
-      <div class="poster" style="background-image: url('${bg}')">
+      <div class="poster">
+        <img
+          class="poster__img"
+          src="${imgUrl}"
+          alt="${escapeHtml(titleRaw)} poster"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+          onerror="this.onerror=null; this.src='${fallback}'"
+        />
         ${rank && rank <= 250 ? `<span class="poster__rank">#${rank}</span>` : ""}
         <span class="poster__rating">★ ${escapeHtml(String(rating))}</span>
         <div class="poster__hover">${tagline}</div>
@@ -247,8 +285,8 @@ function setSeed(movie){
   $("#seedSub").textContent   = movie
     ? `${movie.year ?? "—"} · ★ ${(movie.rating ?? "N/A")} · ${(movie.genres || []).join(", ")}`
     : "Click any card to set it as the seed, then we'll find you something to watch next.";
-  $("#seedPoster").setAttribute("style",
-    movie ? `background-image: url('${posterDataUri(movie)}')` : "");
+  if(movie) setBgWithFallback($("#seedPoster"), movie);
+  else $("#seedPoster").style.backgroundImage = "";
   $("#recommendBtn").disabled = !movie;
 }
 
@@ -287,7 +325,7 @@ async function openModal(movie){
   const modal = $("#modal");
   $("#modalKicker").textContent  = (movie.genres || []).slice(0, 3).join(" · ") || "Movie";
   $("#modalTitle").textContent   = movie.title || "—";
-  $("#modalPoster").setAttribute("style", `background-image: url('${posterDataUri(movie)}')`);
+  setBgWithFallback($("#modalPoster"), movie);
   $("#modalTagline").textContent = movie.tagline ? `"${movie.tagline}"` : "";
   $("#modalMeta").innerHTML = `
     <span>${escapeHtml(String(movie.year ?? "—"))}</span>
@@ -343,8 +381,7 @@ async function loadFeatured(){
   if(!f) return;
   $("#heroTitle").textContent   = f.title;
   $("#heroTagline").textContent = f.tagline || "Pick a movie and compare content‑based vs. collaborative recommendations.";
-  $("#heroBg").setAttribute("style",
-    `background-image: url('${posterDataUri(f)}'); background-size: cover; background-position: center;`);
+  setBgWithFallback($("#heroBg"), f);
   $("#heroMeta").innerHTML = `
     <span class="badge">★ ${escapeHtml(String((f.rating ?? "N/A")))}</span>
     <span>${escapeHtml(String(f.year ?? "—"))}</span>

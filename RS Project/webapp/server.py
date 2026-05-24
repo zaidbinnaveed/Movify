@@ -5,7 +5,8 @@ import mimetypes
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.request import urlopen
 import traceback
 
 
@@ -46,6 +47,7 @@ class AppState:
     data = None
     content_model = None
     collab_model = None
+    poster_cache = {}
 
 
 def get_state():
@@ -76,6 +78,33 @@ def _bad_request(handler: BaseHTTPRequestHandler, message: str):
 
 def _not_found(handler: BaseHTTPRequestHandler):
     _json_response(handler, {"error": "Not found"}, status=404)
+
+
+def _lookup_poster_url(title: str, year: str = "") -> str | None:
+    t = (title or "").strip()
+    y = (year or "").strip()
+    if not t:
+        return None
+
+    cache_key = (t.lower(), y)
+    if cache_key in AppState.poster_cache:
+        return AppState.poster_cache[cache_key]
+
+    try:
+        params = {"t": t, "apikey": "thewdb"}
+        if y:
+            params["y"] = y
+        url = "https://www.omdbapi.com/?" + urlencode(params)
+        with urlopen(url, timeout=6) as resp:
+            payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+        poster = str(payload.get("Poster") or "").strip()
+        if not poster or poster == "N/A":
+            poster = None
+    except Exception:
+        poster = None
+
+    AppState.poster_cache[cache_key] = poster
+    return poster
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -125,6 +154,21 @@ class Handler(BaseHTTPRequestHandler):
             df = df.sort_values(["rating", "year"], ascending=[False, False]).head(limit)
             cards = [movie_to_card(r) for r in df.to_dict(orient="records")]
             return _json_response(self, {"results": cards})
+
+        if path == "/api/poster-image":
+            title = (qs.get("title") or [""])[0]
+            year = (qs.get("year") or [""])[0]
+            poster = _lookup_poster_url(title, year)
+            if not poster:
+                self.send_response(404)
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return
+            self.send_response(302)
+            self.send_header("Location", poster)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
 
         if path == "/api/featured":
             data, _, _ = get_state()
@@ -257,9 +301,10 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     import os
     host = "0.0.0.0"
-    port = int(os.environ.get("PORT", "5000"))
+    port = int(os.environ.get("PORT", "5055"))
     server = ThreadingHTTPServer((host, port), Handler)
-    print(f"Web app running at http://{host}:{port}")
+    # Keep binding to all interfaces, but show the browser-friendly local URL.
+    print(f"Web app running at http://localhost:{port}")
     print("Press Ctrl+C to stop.")
     server.serve_forever()
 
